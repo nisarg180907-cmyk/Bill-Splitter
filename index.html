@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bill Splitter - Smart Expense & Debt Settlement</title>
+  <meta name="description" content="Split bills fairly with exact penny division, track who paid for whom, manage who owes whom, and save history with local storage." />
+  <meta property="og:title" content="Bill Splitter - Smart Expense & Debt Settlement" />
+  <meta property="og:description" content="Split bills fairly with exact penny division, track who paid for whom, and manage pending debts." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <!-- Google Fonts: Inter & JetBrains Mono for modern financial UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-content">
+        <div class="brand">
+          <div class="brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="3"></rect>
+              <line x1="2" y1="10" x2="22" y2="10"></line>
+              <line x1="7" y1="15" x2="12" y2="15"></line>
+              <circle cx="17" cy="15" r="1.5"></circle>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title-wrap">
+              <h1 class="brand-title">Bill Splitter</h1>
+              <span class="brand-status-chip">
+                <span class="pulse-dot"></span>
+                <span>Offline / LocalStorage</span>
+              </span>
+            </div>
+            <p class="brand-subtitle">Exact share math, who-paid-whom settlements, &amp; debt ledger</p>
+          </div>
+        </div>
+
+        <div class="header-right-actions">
+          <!-- Quick Edge Case & Preset Tester Dropdown -->
+          <div class="preset-dropdown-wrap">
+            <button type="button" id="btn-toggle-presets" class="btn btn-ghost btn-sm" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-inline">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+              </svg>
+              <span>Test Presets</span>
+              <span class="chevron-down">&#9662;</span>
+            </button>
+            <div id="presets-menu" class="presets-menu hidden">
+              <div class="menu-header">Quick Test Presets &amp; Edge Cases</div>
+              <button type="button" class="preset-item" data-preset="dinner">
+                <strong>🍽️ Group Dinner ($180 / 3 People)</strong>
+                <span>Custom payer: Alice paid $150, Bob $30, Charlie $0</span>
+              </button>
+              <button type="button" class="preset-item" data-preset="debt900">
+                <strong>💵 p1 Paid for p2 ($1800 Total)</strong>
+                <span>p1 paid $1800; p2 owes p1 exactly $900.00</span>
+              </button>
+              <button type="button" class="preset-item" data-preset="penny">
+                <strong>🪙 Penny Rounding Test ($100.00 / 3 People)</strong>
+                <span>Exact division: $33.34 + $33.33 + $33.33 = $100.00</span>
+              </button>
+              <button type="button" class="preset-item" data-preset="micro">
+                <strong>🔬 Tiny Micro-Bill ($0.05 / 4 People)</strong>
+                <span>Tests penny allocation edge cases down to $0.01</span>
+              </button>
+              <button type="button" class="preset-item text-danger" data-preset="error-zero">
+                <strong>⚠️ Test Error Handling (Zero / Negative Bill)</strong>
+                <span>Simulates invalid $0.00 bill to verify error state</span>
+              </button>
+            </div>
+          </div>
+
+          <nav class="nav-tabs" aria-label="Main Navigation">
+            <button type="button" class="tab-btn active" id="tab-calculator" data-target="view-calculator">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2"></rect>
+                <line x1="8" y1="6" x2="16" y2="6"></line>
+                <line x1="16" y1="14" x2="16" y2="18"></line>
+                <path d="M16 10h.01M12 10h.01M8 10h.01M12 14h.01M8 14h.01M12 18h.01M8 18h.01"></path>
+              </svg>
+              <span>Split Bill</span>
+            </button>
+            <button type="button" class="tab-btn" id="tab-history" data-target="view-history">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+              </svg>
+              <span>Previous Bills</span>
+              <span class="badge-count" id="history-count">0</span>
+            </button>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Notification / Error Message Banner -->
+      <div id="alert-banner" class="alert-banner hidden" role="alert" aria-live="assertive">
+        <div class="alert-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+        </div>
+        <div class="alert-content">
+          <div class="alert-title" id="alert-title">Input Error</div>
+          <div class="alert-text" id="alert-message"></div>
+        </div>
+        <button type="button" class="alert-close" id="alert-close-btn" aria-label="Close error message">&times;</button>
+      </div>
+
+      <!-- VIEW 1: CALCULATOR -->
+      <section id="view-calculator" class="view-panel active">
+        <div class="grid-layout">
+          <!-- Left Column: Bill Input Form -->
+          <div class="card form-card">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2 class="card-title">1. Bill Setup &amp; Participants</h2>
+                <p class="card-desc">Configure occasion, date, total amount, and who was involved.</p>
+              </div>
+              <button type="button" id="btn-quick-clear" class="btn-text-link" title="Reset all inputs to default">
+                Reset Form
+              </button>
+            </div>
+
+            <form id="bill-form" novalidate>
+              <!-- Occasion Name & Date -->
+              <div class="form-row-2">
+                <div class="form-group" id="group-occasion">
+                  <label for="occasion-name" class="form-label">Occasion Name <span class="required">*</span></label>
+                  <input type="text" id="occasion-name" class="form-input" placeholder="e.g. Dinner with Friends, Road Trip" required />
+                  <span class="field-error-msg hidden" id="err-occasion">Please enter an occasion name</span>
+                </div>
+
+                <div class="form-group" id="group-date">
+                  <label for="bill-date" class="form-label">Date <span class="required">*</span></label>
+                  <input type="date" id="bill-date" class="form-input" required />
+                  <span class="field-error-msg hidden" id="err-date">Please pick a valid date</span>
+                </div>
+              </div>
+
+              <!-- Bill Amount and Currency -->
+              <div class="form-row-2">
+                <div class="form-group" id="group-amount">
+                  <div class="label-with-hint">
+                    <label for="bill-amount" class="form-label">Total Bill Amount <span class="required">*</span></label>
+                    <span class="label-hint">Must be &gt; 0</span>
+                  </div>
+                  <div class="input-with-prefix">
+                    <span class="input-prefix" id="currency-symbol-display">$</span>
+                    <input type="number" id="bill-amount" class="form-input with-prefix font-mono" placeholder="0.00" min="0.01" step="0.01" required />
+                  </div>
+                  <span class="field-error-msg hidden" id="err-amount">Please enter an amount greater than 0</span>
+                  
+                  <!-- Quick Amount Chips -->
+                  <div class="quick-amount-chips" role="group" aria-label="Quick amount shortcuts">
+                    <button type="button" class="amount-chip" data-val="25">$25</button>
+                    <button type="button" class="amount-chip" data-val="50">$50</button>
+                    <button type="button" class="amount-chip" data-val="100">$100</button>
+                    <button type="button" class="amount-chip" data-val="250">$250</button>
+                    <button type="button" class="amount-chip" data-val="500">$500</button>
+                    <button type="button" class="amount-chip" data-val="900">$900</button>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="currency-select" class="form-label">Currency</label>
+                  <select id="currency-select" class="form-select font-medium">
+                    <option value="USD" data-symbol="$">USD ($)</option>
+                    <option value="EUR" data-symbol="€">EUR (€)</option>
+                    <option value="GBP" data-symbol="£">GBP (£)</option>
+                    <option value="INR" data-symbol="₹">INR (₹)</option>
+                    <option value="CAD" data-symbol="CA$">CAD ($)</option>
+                    <option value="AUD" data-symbol="A$">AUD ($)</option>
+                    <option value="JPY" data-symbol="¥">JPY (¥)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Optional Tip / Tax Calculator Accordion -->
+              <div class="accordion-panel">
+                <button type="button" class="accordion-toggle" id="btn-toggle-tip-calc" aria-expanded="false">
+                  <span class="accordion-label">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-inline">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Add Tip / Tax Assistant (Optional)</span>
+                  </span>
+                  <span class="accordion-state" id="tip-accordion-summary">None</span>
+                </button>
+
+                <div id="tip-calc-content" class="accordion-content hidden">
+                  <div class="tip-calc-grid">
+                    <div>
+                      <label for="subtotal-amount" class="form-label">Subtotal</label>
+                      <input type="number" id="subtotal-amount" class="form-input font-mono" placeholder="Subtotal" step="0.01" min="0" />
+                    </div>
+                    <div>
+                      <label class="form-label">Quick Tip Preset</label>
+                      <div class="tip-presets" role="group" aria-label="Tip Presets">
+                        <button type="button" class="tip-chip" data-tip="0">0%</button>
+                        <button type="button" class="tip-chip" data-tip="10">10%</button>
+                        <button type="button" class="tip-chip" data-tip="15">15%</button>
+                        <button type="button" class="tip-chip" data-tip="18">18%</button>
+                        <button type="button" class="tip-chip" data-tip="20">20%</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tip-summary-row">
+                    <span>Computed Tip: <strong id="computed-tip-amount">$0.00</strong></span>
+                    <button type="button" id="btn-apply-tip-to-bill" class="btn btn-secondary btn-xs">Apply Total to Bill</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Number of People -->
+              <div class="form-group" id="group-people-count">
+                <div class="label-with-hint">
+                  <label for="num-people" class="form-label">Number of People <span class="required">*</span></label>
+                  <span class="label-hint">Between 1 and 50</span>
+                </div>
+                <div class="stepper-input">
+                  <button type="button" class="stepper-btn" id="btn-decrease-people" aria-label="Decrease person count">−</button>
+                  <input type="number" id="num-people" class="form-input text-center font-mono" min="1" max="50" value="3" required />
+                  <button type="button" class="stepper-btn" id="btn-increase-people" aria-label="Increase person count">+</button>
+                </div>
+                <span class="field-error-msg hidden" id="err-people-count">Must be at least 1 person</span>
+              </div>
+
+              <!-- Payment Mode -->
+              <div class="form-group">
+                <label class="form-label">Who paid upfront for this bill?</label>
+                <div class="segmented-control" role="radiogroup" aria-label="Payment Mode">
+                  <label class="segment-option">
+                    <input type="radio" name="payment-mode" value="single" checked />
+                    <span>Single Person Paid</span>
+                  </label>
+                  <label class="segment-option">
+                    <input type="radio" name="payment-mode" value="multiple" />
+                    <span>Custom / Multiple Payers</span>
+                  </label>
+                  <label class="segment-option">
+                    <input type="radio" name="payment-mode" value="equal" />
+                    <span>Split &amp; Paid Equally</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Single Payer Dropdown (visible when 'single' selected) -->
+              <div id="single-payer-section" class="form-group payer-highlight-box">
+                <label for="single-payer-select" class="form-label">Select Person Who Paid Full Amount:</label>
+                <select id="single-payer-select" class="form-select font-medium"></select>
+                <p class="help-text">Everyone else will owe their share directly to this person.</p>
+              </div>
+
+              <!-- People List & Names -->
+              <div class="form-group">
+                <div class="people-header">
+                  <div>
+                    <label class="form-label">Participant Names &amp; Upfront Amounts</label>
+                    <span class="form-sub-label">Edit names and specify how much each contributed</span>
+                  </div>
+                  <span class="people-subtext" id="paid-sum-indicator"></span>
+                </div>
+
+                <!-- Live Balance Progress Bar for Multiple Payers -->
+                <div id="paid-progress-bar-wrap" class="paid-progress-bar-wrap hidden">
+                  <div class="progress-bar-track">
+                    <div id="paid-progress-fill" class="progress-bar-fill" style="width: 0%;"></div>
+                  </div>
+                  <div class="progress-bar-labels">
+                    <span id="paid-progress-text">Paid: $0.00 / $0.00</span>
+                    <button type="button" id="btn-quick-auto-fill" class="btn-text-link">Auto-balance Remainder</button>
+                  </div>
+                </div>
+
+                <div id="people-list-container" class="people-list" role="list">
+                  <!-- Dynamically rendered person rows -->
+                </div>
+
+                <div class="people-actions">
+                  <button type="button" id="btn-add-person" class="btn btn-secondary btn-sm">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-inline">
+                      <line x1="12" y1="5" x2="12" y2="19"></line>
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Add Participant</span>
+                  </button>
+                  <span class="participants-count-text" id="participants-count-display">3 Participants</span>
+                </div>
+              </div>
+
+              <!-- Form Buttons -->
+              <div class="form-footer-buttons">
+                <button type="submit" id="btn-calculate" class="btn btn-primary btn-lg">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-inline">
+                    <path d="M4 7h16M4 12h16M4 17h10"></path>
+                  </svg>
+                  <span>Calculate &amp; Split Bill</span>
+                </button>
+                <button type="button" id="btn-reset-form" class="btn btn-secondary">
+                  Reset
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Right Column: Calculation Result Panel -->
+          <div class="result-column">
+            <!-- Placeholder when no result is calculated -->
+            <div id="result-placeholder" class="card empty-state-card">
+              <div class="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="2" y="4" width="20" height="16" rx="3"></rect>
+                  <line x1="2" y1="10" x2="22" y2="10"></line>
+                  <line x1="7" y1="15" x2="12" y2="15"></line>
+                </svg>
+              </div>
+              <h3 class="empty-title">Ready to Calculate</h3>
+              <p class="empty-desc">Enter your bill amount and participants on the left, then click <strong>Calculate &amp; Split Bill</strong> to see exact penny shares and who owes whom.</p>
+              
+              <div class="empty-features-grid">
+                <div class="feature-item">
+                  <span class="feature-icon">⚖️</span>
+                  <span><strong>100% Exact Penny Split:</strong> Zero rounding loss. Sum of individual shares always matches the bill exactly.</span>
+                </div>
+                <div class="feature-item">
+                  <span class="feature-icon">🤝</span>
+                  <span><strong>Debt Resolution:</strong> Generates clear narrative transfers like <em>"p2 has to pay p1 $900"</em>.</span>
+                </div>
+                <div class="feature-item">
+                  <span class="feature-icon">💾</span>
+                  <span><strong>Reload Persistent:</strong> Full LocalStorage sync keeps your state and history safe.</span>
+                </div>
+              </div>
+
+              <div class="quick-try-wrap">
+                <button type="button" id="btn-placeholder-sample" class="btn btn-secondary btn-sm">
+                  ⚡ Try Sample Bill with 3 Friends
+                </button>
+              </div>
+            </div>
+
+            <!-- Calculated Result Card (Shown after calculation) -->
+            <div id="result-card" class="card result-card hidden">
+              <div class="result-header">
+                <div>
+                  <div class="result-kicker" id="res-occasion-date">Dinner &bull; Oct 11, 2026</div>
+                  <h2 class="result-title" id="res-occasion-name">Occasion</h2>
+                </div>
+                <div class="result-total-badge">
+                  <span class="total-label">Total Bill</span>
+                  <span class="total-value font-mono" id="res-total-amount">$0.00</span>
+                </div>
+              </div>
+
+              <!-- Accuracy Guarantee Banner -->
+              <div class="math-check-banner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="icon-inline check-icon">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span id="math-check-text">Sum of individual shares adds up exactly to the total bill.</span>
+              </div>
+
+              <!-- Section 1: Individual Shares -->
+              <div class="result-section">
+                <div class="section-title-row">
+                  <div>
+                    <h3 class="section-heading">Each Person's Share</h3>
+                    <p class="section-subtext" id="share-per-person-subtext">Exact share breakdown</p>
+                  </div>
+                  <span class="section-badge" id="shares-count-badge">3 People</span>
+                </div>
+                <div id="shares-list" class="shares-list" role="list">
+                  <!-- Dynamically populated shares -->
+                </div>
+              </div>
+
+              <!-- Section 2: Who Paid Money to Whom (Settlement) -->
+              <div class="result-section">
+                <div class="section-title-row">
+                  <div>
+                    <h3 class="section-heading">Settlement: Who Pays Whom</h3>
+                    <p class="section-explainer">Transfers required to balance accounts:</p>
+                  </div>
+                  <span class="section-badge" id="settlement-count-badge">0 Transfers</span>
+                </div>
+                
+                <div id="settlements-list" class="settlements-list" role="list">
+                  <!-- Dynamically populated settlement cards -->
+                </div>
+              </div>
+
+              <!-- Save / Action Row -->
+              <div class="result-actions">
+                <button type="button" id="btn-save-bill" class="btn btn-success">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-inline">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                    <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                    <polyline points="7 3 7 8 15 8"></polyline>
+                  </svg>
+                  <span>Save to Previous Bills</span>
+                </button>
+                <button type="button" id="btn-copy-summary" class="btn btn-secondary" title="Copy formatted summary to clipboard">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-inline">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  <span>Copy Summary</span>
+                </button>
+                <button type="button" id="btn-print-bill" class="btn btn-secondary btn-icon-only" title="Print Bill Receipt">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-inline">
+                    <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                    <rect x="6" y="14" width="12" height="8"></rect>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: PREVIOUS BILLS & HISTORY -->
+      <section id="view-history" class="view-panel">
+        <div class="history-top-bar">
+          <div>
+            <h2 class="view-title">Previous Bills &amp; Debt Ledger</h2>
+            <p class="view-desc">Review past occasions, track who paid whom, and settle pending dues.</p>
+          </div>
+
+          <div class="history-controls">
+            <!-- Filter by settlement status -->
+            <div class="filter-group">
+              <label for="history-filter" class="filter-label">Filter:</label>
+              <select id="history-filter" class="form-select filter-select">
+                <option value="all">All Bills</option>
+                <option value="pending">With Pending Dues</option>
+                <option value="settled">Fully Settled</option>
+              </select>
+            </div>
+
+            <!-- Search input -->
+            <div class="history-search-wrap">
+              <input type="text" id="history-search" class="form-input search-input" placeholder="Search occasion or person..." />
+            </div>
+
+            <button type="button" id="btn-clear-history" class="btn btn-outline-danger btn-sm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-inline">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              <span>Clear All</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Global Summary Statistics Strip -->
+        <div class="stats-strip" id="stats-strip">
+          <div class="stat-card">
+            <span class="stat-label">Total Bills Saved</span>
+            <span class="stat-value" id="stat-total-bills">0</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Total Amount Split</span>
+            <span class="stat-value font-mono" id="stat-total-amount">$0.00</span>
+          </div>
+          <div class="stat-card pending-stat">
+            <span class="stat-label">Total Pending Dues</span>
+            <span class="stat-value font-mono" id="stat-total-pending">$0.00</span>
+          </div>
+          <div class="stat-card settled-stat">
+            <span class="stat-label">Settled Transfers</span>
+            <span class="stat-value" id="stat-total-settled">0</span>
+          </div>
+        </div>
+
+        <!-- Global Pending Debts Summary Banner -->
+        <div id="pending-summary-card" class="pending-summary-card hidden">
+          <div class="pending-summary-header">
+            <div class="pending-summary-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-inline alert-accent">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>Outstanding Balances Requiring Payment</span>
+            </div>
+            <span class="pending-total-amount font-mono" id="global-pending-amount">$0.00 Pending</span>
+          </div>
+          <p class="pending-summary-subtext">Click "Mark Paid" once a debtor sends the money:</p>
+          <div id="pending-breakdown-list" class="pending-breakdown-list" role="list">
+            <!-- Shows summarized who owes whom currently -->
+          </div>
+        </div>
+
+        <!-- Empty State for History -->
+        <div id="history-empty-state" class="card empty-state-card">
+          <div class="empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+          </div>
+          <h3 class="empty-title">No Previous Bills Yet</h3>
+          <p class="empty-desc">When you calculate and save a bill, it will appear here with full date records, exact shares, and debt settlement tracking.</p>
+          <button type="button" id="btn-goto-calculator" class="btn btn-primary">
+            Split Your First Bill
+          </button>
+        </div>
+
+        <!-- History Bills List -->
+        <div id="history-list-container" class="history-grid hidden" role="list">
+          <!-- Dynamically populated bill cards -->
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <div class="footer-content">
+        <span>Bill Splitter &bull; Offline-ready vanilla application &bull; Data stored in browser local storage</span>
+        <span>Exact penny rounding algorithm &bull; 100% fair mathematical settlement</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <!-- Vanilla JavaScript -->
+  <script src="./script.js"></script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "Bill Splitter",
+  "description": "Smart bill splitter with exact penny distribution, individual payments, who-owes-whom settlements, and persistent history.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
